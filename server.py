@@ -7,8 +7,8 @@
           PUT /api/students/<姓名>    → 修改成绩 {score}
           DELETE /api/students/<姓名> → 删除
 
-运行：python server.py，然后浏览器打开 http://127.0.0.1:8000
-（监听 0.0.0.0，端口可用环境变量 PORT 覆盖，Docker 镜像默认 8000）
+运行：python server.py，然后浏览器打开 http://localhost:5199
+（监听 0.0.0.0，端口可用环境变量 PORT 覆盖，默认 5199）
 """
 
 import json
@@ -20,7 +20,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, "students.json")
 INDEX_FILE = os.path.join(BASE_DIR, "index.html")
 HOST = "0.0.0.0"
-PORT = int(os.environ.get("PORT", "8000"))
+PORT = int(os.environ.get("PORT", "5199"))
 
 
 def load_students():
@@ -163,7 +163,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"学生成绩管理系统已启动：http://{HOST}:{PORT}")
+    print(f"学生成绩管理系统已启动：http://localhost:{PORT}")
     print("按 Ctrl+C 停止")
     try:
         server.serve_forever()

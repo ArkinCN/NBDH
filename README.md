@@ -38,7 +38,7 @@ cd D:\test
 python server.py
 ```
 
-看到 `学生成绩管理系统已启动：http://127.0.0.1:8000` 后，用浏览器打开 <http://127.0.0.1:8000>，按 `Ctrl+C` 停止服务。
+看到 `学生成绩管理系统已启动：http://localhost:5199` 后，用浏览器打开 <http://localhost:5199>，按 `Ctrl+C` 停止服务。
 
 如果系统提示找不到 `python` 命令，说明 Python 没加入 PATH，可以用完整路径：
 
@@ -147,19 +147,19 @@ Web 版：
 
 ```bash
 docker build -t nbdh-score:test .
-docker run -d --name nbdh-score -p 18000:8000 --memory 512m --cpus 1.0 nbdh-score:test
-curl -fsS http://127.0.0.1:18000/
+docker run -d --name nbdh-score -p 5199:5199 --memory 512m --cpus 1.0 nbdh-score:test
+curl -fsS http://localhost:5199/
 ```
 
-- 容器内监听 `0.0.0.0:8000`，可用 `PORT` 环境变量覆盖；镜像内以非 root 用户 `app`（uid 10001）运行。
-- 镜像自带 `HEALTHCHECK`，探测 `http://127.0.0.1:8000/`。
+- 容器内监听 `0.0.0.0:5199`，可用 `PORT` 环境变量覆盖；镜像内以非 root 用户 `app`（uid 10001）运行。
+- 镜像自带 `HEALTHCHECK`，探测 `http://127.0.0.1:5199/`。
 - 数据存在容器的 `/app/students.json`，删除或重建容器会丢失；需要持久化时用文件挂载 `-v 宿主机students.json:/app/students.json`，并保证容器内 `app` 用户（uid 10001）可写。
 - 实测常驻内存约 16MB，512MB 限额足够。
 
 ## 九、常见问题
 
 - **`python` 不是内部或外部命令**：Python 未加入 PATH，用第二节的完整路径，或安装时勾选 “Add Python to PATH”。
-- **`http://127.0.0.1:8000` 打不开**：确认 `server.py` 正在运行且没有报错。8000 端口被占用时，改 `server.py` 顶部的 `PORT` 为其他数字（如 8001）。
+- **`http://localhost:5199` 打不开**：确认 `server.py` 正在运行且没有报错。5199 端口被占用时，改 `server.py` 顶部的 `PORT` 默认值，或临时用环境变量覆盖（Windows PowerShell：`$env:PORT=5200; python server.py`）。
 - **不要直接双击 `index.html`**：页面里的接口请求需要后端，必须通过 `python server.py` 启动后访问。
 - **中文显示乱码**：Windows 终端编码问题，可执行 `chcp 65001` 切到 UTF-8，或在 PyCharm 里运行。
 - **启动时提示 JSON 内容损坏**：手动改坏了 `students.json`，删掉该文件重新开始即可。
