@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>学生成绩管理系统</title>
+  <style>
+    body {
+      font-family: "Microsoft YaHei", Arial, sans-serif;
+      max-width: 720px;
+      margin: 40px auto;
+      padding: 0 16px;
+      color: #222;
+    }
+    h1 { font-size: 22px; }
+    form { display: flex; gap: 8px; margin-bottom: 8px; }
+    input {
+      padding: 6px 8px;
+      font-size: 14px;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+    }
+    #name-input { flex: 1; }
+    #score-input { width: 110px; }
+    button {
+      padding: 6px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      background: #f7f7f7;
+    }
+    button:hover { background: #eee; }
+    #message { min-height: 20px; font-size: 13px; color: #c0392b; margin-bottom: 12px; }
+    #message.ok { color: #2e7d32; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid #e0e0e0; padding: 8px 6px; text-align: left; }
+    th { background: #f5f5f5; }
+    td button { padding: 2px 8px; font-size: 13px; margin-right: 4px; }
+    #stats { margin-top: 16px; font-size: 14px; color: #444; }
+    .empty { color: #999; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>学生成绩管理系统</h1>
+
+  <form id="add-form">
+    <input id="name-input" placeholder="姓名" autocomplete="off">
+    <input id="score-input" placeholder="成绩 0-100" autocomplete="off">
+    <button type="submit">添加</button>
+  </form>
+  <div id="message"></div>
+
+  <table>
+    <thead>
+      <tr><th>姓名</th><th>成绩</th><th>等级</th><th>操作</th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <p id="stats"></p>
+
+  <script>
+    const rowsEl = document.getElementById("rows");
+    const statsEl = document.getElementById("stats");
+    const messageEl = document.getElementById("message");
+
+    function setMessage(text, ok = false) {
+      messageEl.textContent = text;
+      messageEl.classList.toggle("ok", ok);
+    }
+
+    function levelOf(score) {
+      if (score >= 90) return "A";
+      if (score >= 80) return "B";
+      if (score >= 70) return "C";
+      if (score >= 60) return "D";
+      return "E";
+    }
+
+    async function request(url, options = {}) {
+      const res = await fetch(url, options);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "请求失败");
+      return data;
+    }
+
+    function makeButton(text, onClick) {
+      const btn = document.createElement("button");
+      btn.textContent = text;
+      btn.addEventListener("click", onClick);
+      return btn;
+    }
+
+    function render(students) {
+      rowsEl.innerHTML = "";
+      if (students.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.className = "empty";
+        td.textContent = "还没有学生，先添加一个吧";
+        tr.appendChild(td);
+        rowsEl.appendChild(tr);
+      }
+      for (const student of students) {
+        const tr = document.createElement("tr");
+        for (const value of [student.name, student.score.toFixed(1), levelOf(student.score)]) {
+          const td = document.createElement("td");
+          td.textContent = value;
+          tr.appendChild(td);
+        }
+        const actions = document.createElement("td");
+        actions.appendChild(makeButton("改分", () => editScore(student)));
+        actions.appendChild(makeButton("删除", () => removeStudent(student)));
+        tr.appendChild(actions);
+        rowsEl.appendChild(tr);
+      }
+      renderStats(students);
+    }
+
+    function renderStats(students) {
+      if (students.length === 0) {
+        statsEl.textContent = "";
+        return;
+      }
+      const scores = students.map(s => s.score);
+      const passed = scores.filter(x => x >= 60).length;
+      const average = scores.reduce((a, b) => a + b, 0) / scores.length;
+      statsEl.textContent =
+        `人数 ${students.length} ｜ 平均分 ${average.toFixed(1)} ｜ ` +
+        `最高 ${Math.max(...scores).toFixed(1)} ｜ 最低 ${Math.min(...scores).toFixed(1)} ｜ ` +
+        `及格率 ${(passed / scores.length * 100).toFixed(1)}%`;
+    }
+
+    async function loadStudents() {
+      try {
+        const students = await request("/api/students");
+        render(students);
+      } catch (err) {
+        setMessage(err.message);
+      }
+    }
+
+    document.getElementById("add-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const nameInput = document.getElementById("name-input");
+      const scoreInput = document.getElementById("score-input");
+      try {
+        const data = await request("/api/students", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: nameInput.value.trim(), score: scoreInput.value.trim() }),
+        });
+        nameInput.value = "";
+        scoreInput.value = "";
+        setMessage(data.message, true);
+        loadStudents();
+      } catch (err) {
+        setMessage(err.message);
+      }
+    });
+
+    async function editScore(student) {
+      const input = prompt(`${student.name} 的新成绩（0-100）：`, String(student.score));
+      if (input === null) return;
+      try {
+        const data = await request(`/api/students/${encodeURIComponent(student.name)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ score: input.trim() }),
+        });
+        setMessage(data.message, true);
+        loadStudents();
+      } catch (err) {
+        setMessage(err.message);
+      }
+    }
+
+    async function removeStudent(student) {
+      if (!confirm(`确定删除 ${student.name}？`)) return;
+      try {
+        const data = await request(`/api/students/${encodeURIComponent(student.name)}`, {
+          method: "DELETE",
+        });
+        setMessage(data.message, true);
+        loadStudents();
+      } catch (err) {
+        setMessage(err.message);
+      }
+    }
+
+    loadStudents();
+  </script>
+</body>
+</html>
